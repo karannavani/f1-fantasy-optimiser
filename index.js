@@ -65,7 +65,7 @@ function generateTeamPriceAndPoints(team) {
 
 function generateAvailableOptions() {
   const myBudgetUpper = 102.2;
-  const myBudgetLower = 102.2;
+  const myBudgetLower = 90;
   let budgetFilteredTeam = [];
   let driver1Filter = [];
   let constructorFilter = [];
@@ -77,24 +77,31 @@ function generateAvailableOptions() {
     }
   });
 
-  // DRIVER 1 FILTER
-  budgetFilteredTeam.forEach((teamCombo) => {
-    teamCombo.team.filter((player) => {
-      player.name === 'M. Verstappen' ? driver1Filter.push(teamCombo) : null;
-    });
+  // POINTS FILTER
+  budgetFilteredTeam.filter((teamCombo) => {
+    if (teamCombo.teamAvg > 170) {
+      console.log(teamCombo);
+    }
   });
 
-  // CONSTRUCTOR FILTER
-  driver1Filter.forEach((teamCombo) => {
-    teamCombo.team.filter((player) => {
-      player.name === 'Red Bull' ? constructorFilter.push(teamCombo) : null;
-    });
-  });
+  // // DRIVER 1 FILTER
+  // budgetFilteredTeam.forEach((teamCombo) => {
+  //   teamCombo.team.filter((player) => {
+  //     player.name === 'M. Verstappen' ? driver1Filter.push(teamCombo) : null;
+  //   });
+  // });
 
-  // console.log(constructorFilter);
-  constructorFilter.forEach((option) => {
-    console.log(option);
-  });
+  // // CONSTRUCTOR FILTER
+  // driver1Filter.forEach((teamCombo) => {
+  //   teamCombo.team.filter((player) => {
+  //     player.name === 'Red Bull' ? constructorFilter.push(teamCombo) : null;
+  //   });
+  // });
+
+  // console.log(constructorFilter.length);
+  // constructorFilter.forEach((option) => {
+  //   console.log(option);
+  // });
 }
 
 getPlayers();
