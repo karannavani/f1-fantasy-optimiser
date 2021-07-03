@@ -18,8 +18,15 @@ function getPlayers() {
           ? constructors.push({
               name: player.display_name,
               price: player.price,
+              season_points: player.season_score,
+              average_points: player.season_score / player.season_prices.length,
             })
-          : drivers.push({ name: player.display_name, price: player.price });
+          : drivers.push({
+              name: player.display_name,
+              price: player.price,
+              season_points: player.season_score,
+              average_points: player.season_score / player.season_prices.length,
+            });
       });
     })
     .finally(() => generateTeam());
@@ -30,20 +37,29 @@ function generateTeam() {
   combinations.forEach((combination) => {
     constructors.forEach((constructor) => {
       const team = [...combination, constructor];
-      generateTeamPrice(team);
+      generateTeamPriceAndPoints(team);
     });
   });
 
   generateAvailableOptions();
 }
 
-function generateTeamPrice(team) {
+function generateTeamPriceAndPoints(team) {
   let totalPrice = 0;
-  team.forEach((teamElement) => {
-    totalPrice = totalPrice + teamElement.price;
+  let teamAvg = 0;
+  team.forEach((player) => {
+    totalPrice = totalPrice + player.price;
+    teamAvg = teamAvg + player.average_points;
   });
 
-  const teamCombo = { teamPrice: parseFloat(totalPrice.toFixed(2)), team };
+  const priceToPointsRatio = parseFloat(teamAvg / totalPrice).toFixed(2);
+
+  const teamCombo = {
+    teamPrice: parseFloat(totalPrice.toFixed(2)),
+    teamAvg: parseFloat(teamAvg.toFixed(2)),
+    priceToPointsRatio: parseFloat(priceToPointsRatio),
+    team,
+  };
   teamCombinations.push(teamCombo);
 }
 
@@ -75,7 +91,10 @@ function generateAvailableOptions() {
     });
   });
 
-  console.log(JSON.stringify(constructorFilter));
+  // console.log(constructorFilter);
+  constructorFilter.forEach((option) => {
+    console.log(option);
+  });
 }
 
 getPlayers();
