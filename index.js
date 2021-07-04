@@ -160,11 +160,11 @@ function generateAvailableOptions() {
     }
   });
 
-  getBestTeamFromPrevRace(budgetFilteredTeam);
+  getBestTeamFromLatestRace(budgetFilteredTeam);
   getBestTeamForUpcomingRace(budgetFilteredTeam);
 }
 
-function getBestTeamFromPrevRace(budgetFilteredTeam) {
+function getBestTeamFromLatestRace(budgetFilteredTeam) {
   budgetFilteredTeam.filter((teamCombo) => {
     if (teamCombo.teamLatestAvg >= 199) {
       console.log(teamCombo);
