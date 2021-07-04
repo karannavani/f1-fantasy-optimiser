@@ -1,3 +1,4 @@
+require('dotenv').config();
 require('lodash.combinations');
 const fetch = require('node-fetch');
 let _ = require('lodash');
@@ -7,29 +8,108 @@ let constructors = [];
 
 let teamCombinations = [];
 
+function generateXF1CookieData() {
+  return Buffer.from(
+    // Base64 encode
+    encodeURIComponent(
+      // Encode%20URI
+      JSON.stringify(
+        // Stringify JSON object
+        {
+          data: {
+            subscriptionToken: process.env.SUBSCRIPTION_TOKEN,
+          },
+        }
+      )
+    )
+  ).toString('base64');
+}
+
 function getPlayers() {
   drivers = [];
   constructors = [];
-  fetch('https://fantasy-api.formula1.com/partner_games/f1/players')
+  return fetch('https://fantasy-api.formula1.com/partner_games/f1/players')
     .then((res) => res.json())
-    .then((res) => {
-      res.players.forEach((player) => {
-        player.is_constructor
-          ? constructors.push({
-              name: player.display_name,
-              price: player.price,
-              season_points: player.season_score,
-              average_points: player.season_score / player.season_prices.length,
-            })
-          : drivers.push({
-              name: player.display_name,
-              price: player.price,
-              season_points: player.season_score,
-              average_points: player.season_score / player.season_prices.length,
-            });
+    .then((res) => transformPlayers(res.players));
+}
+
+function transformPlayers(players) {
+  drivers = [];
+  constructors = [];
+  players.forEach((player) => {
+    if (player.is_constructor) {
+      constructors.push({
+        id: player.id,
+        name: player.display_name,
+        price: player.price,
+        season_points: player.season_score,
+        average_points: player.season_score / player.season_prices.length,
       });
-    })
-    .finally(() => generateTeam());
+    } else {
+      drivers.push({
+        id: player.id,
+        name: player.display_name,
+        price: player.price,
+        season_points: player.season_score,
+        average_points: player.season_score / player.season_prices.length,
+      });
+    }
+  });
+
+  getRaceStats();
+}
+
+async function getRaceStats() {
+  for (let i = 0; i < drivers.length; i++) {
+    if (drivers[i]) {
+      const res = await fetch(
+        `https://fantasy-api.formula1.com/partner_games/f1/players/${drivers[i].id}/game_periods_scores?player=${drivers[i].id}`,
+        {
+          headers: {
+            'X-F1-Cookie-Data': generateXF1CookieData(),
+          },
+        }
+      );
+      const stats = await res.json();
+      drivers[i].race_stats = transformRaceStats(stats.game_periods_scores);
+      drivers[i].latest_result =
+        drivers[i].race_stats[drivers[i].race_stats.length - 1].total_points;
+    }
+  }
+  for (let i = 0; i < constructors.length; i++) {
+    if (constructors[i]) {
+      const res = await fetch(
+        `https://fantasy-api.formula1.com/partner_games/f1/players/${constructors[i].id}/game_periods_scores?player=${constructors[i].id}`,
+        {
+          headers: {
+            'X-F1-Cookie-Data': generateXF1CookieData(),
+          },
+        }
+      );
+      const stats = await res.json();
+      constructors[i].race_stats = transformRaceStats(
+        stats.game_periods_scores
+      );
+      constructors[i].latest_result =
+        constructors[i].race_stats[
+          constructors[i].race_stats.length - 1
+        ].total_points;
+    }
+  }
+
+  generateTeam();
+}
+
+function transformRaceStats(statsArr) {
+  const raceStats = [];
+  statsArr.forEach((race) => {
+    const { short_name, total_points } = race;
+    raceStats.push({
+      short_name,
+      total_points,
+    });
+  });
+  return raceStats;
 }
 
 function generateTeam() {
@@ -47,9 +127,11 @@ function generateTeam() {
 function generateTeamPriceAndPoints(team) {
   let totalPrice = 0;
   let teamAvg = 0;
+  let teamLatestAvg = 0;
   team.forEach((player) => {
     totalPrice = totalPrice + player.price;
     teamAvg = teamAvg + player.average_points;
+    teamLatestAvg = teamLatestAvg + player.latest_result;
   });
 
   const priceToPointsRatio = parseFloat(teamAvg / totalPrice).toFixed(2);
@@ -57,6 +139,7 @@ function generateTeamPriceAndPoints(team) {
   const teamCombo = {
     teamPrice: parseFloat(totalPrice.toFixed(2)),
     teamAvg: parseFloat(teamAvg.toFixed(2)),
+    teamLatestAvg: parseFloat(teamLatestAvg.toFixed(2)),
     priceToPointsRatio: parseFloat(priceToPointsRatio),
     team,
   };
@@ -65,7 +148,7 @@ function generateTeamPriceAndPoints(team) {
 
 function generateAvailableOptions() {
   const myBudgetUpper = 102.2;
-  const myBudgetLower = 90;
+  const myBudgetLower = 98;
   let budgetFilteredTeam = [];
   let driver1Filter = [];
   let constructorFilter = [];
@@ -77,31 +160,25 @@ function generateAvailableOptions() {
     }
   });
 
-  // POINTS FILTER
+  getBestTeamFromPrevRace(budgetFilteredTeam);
+  getBestTeamForUpcomingRace(budgetFilteredTeam);
+}
+
+function getBestTeamFromPrevRace(budgetFilteredTeam) {
   budgetFilteredTeam.filter((teamCombo) => {
-    if (teamCombo.teamAvg > 170) {
+    if (teamCombo.teamLatestAvg >= 199) {
       console.log(teamCombo);
     }
   });
+}
 
-  // // DRIVER 1 FILTER
-  // budgetFilteredTeam.forEach((teamCombo) => {
-  //   teamCombo.team.filter((player) => {
-  //     player.name === 'M. Verstappen' ? driver1Filter.push(teamCombo) : null;
-  //   });
-  // });
-
-  // // CONSTRUCTOR FILTER
-  // driver1Filter.forEach((teamCombo) => {
-  //   teamCombo.team.filter((player) => {
-  //     player.name === 'Red Bull' ? constructorFilter.push(teamCombo) : null;
-  //   });
-  // });
-
-  // console.log(constructorFilter.length);
-  // constructorFilter.forEach((option) => {
-  //   console.log(option);
-  // });
+function getBestTeamForUpcomingRace(budgetFilteredTeam) {
+  // POINTS FILTER
+  budgetFilteredTeam.filter((teamCombo) => {
+    if (teamCombo.teamAvg > 171) {
+      console.log(teamCombo);
+    }
+  });
 }
 
 getPlayers();
